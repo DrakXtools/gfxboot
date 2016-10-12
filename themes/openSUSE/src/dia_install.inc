@@ -54,7 +54,7 @@ sectorsize 0x200 eq bootdrive 0x80 eq or {
   xmenu .xm_list [
     is_dvd { "DVD" } { "CD-ROM" } ifelse
     /txt_harddisk
-    "\x09SLP"
+    "\x01SLP"
     "FTP"
     "HTTP"
     "NFS"
@@ -63,18 +63,23 @@ sectorsize 0x200 eq bootdrive 0x80 eq or {
     /txt_http_proxy
   ] put
 
+  xmenu .xm_submenus xmenu .xm_list get length array put
+
   xmenu .xm_title /txt_install_source put
 
   install.set.install.option
 
   % needed in case menu is only attached to install menu
   net.init
+
+  % attach network config menu
+  xmenu.install .xm_submenus get .inst_net_setup xmenu.net put
 } def
 
 
 /install.submenu.net.buf 64 string def
 /install.submenu.net {
-  /txt_network_config exec "\x09\x09%s" install.submenu.net.buf sprintf
+  /txt_network_config exec "\x01%s" install.submenu.net.buf sprintf
   install.submenu.net.buf
 } def
 

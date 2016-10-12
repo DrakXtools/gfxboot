@@ -15,7 +15,7 @@
 %
 /speak {
   % skip leading TABs
-  { dup 0 get '\x09' eq { 1 add } { exit } ifelse } loop
+  { dup 0 get '\x09' le { 1 add } { exit } ifelse } loop
 
   /last.spoken xfree
   /last.spoken over strdup def

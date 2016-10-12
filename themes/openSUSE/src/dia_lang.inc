@@ -202,7 +202,7 @@
 
 /lang.submenu.keyboard.buf 64 string def
 /lang.submenu.keyboard {
-  /txt_keyboard exec "\x09\x09%s" lang.submenu.keyboard.buf sprintf
+  /txt_keyboard exec "\x01%s" lang.submenu.keyboard.buf sprintf
   lang.submenu.keyboard.buf
 } def
 
@@ -220,6 +220,8 @@
 
   xmenu .xm_current lang.default put
   xmenu .xm_list lang.names put
+
+  xmenu .xm_submenus lang.names length array put
 
   xmenu .xm_title /txt_language put
 
@@ -244,6 +246,11 @@
 
   % needed in case menu is only attached to lang menu
   keymap.init
+
+  % attach keyboard menu
+  keymap.submenu {
+    xmenu.lang .xm_submenus get lang.submenu.idx xmenu.keymap put
+  } if
 } def
 
 

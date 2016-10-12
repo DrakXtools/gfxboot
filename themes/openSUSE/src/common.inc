@@ -488,8 +488,8 @@
     } if
   } if
 
-  smode.config_type .undef ne {
-    [ "default" "high" ] smode.config_type get "screenmode=%s " bc.cmd dup length add sprintf
+  video.hc.current {
+    [ "default" "high" ] video.hc.current get "screenmode=%s " bc.cmd dup length add sprintf
   } if
 
   xmenu.dud {
