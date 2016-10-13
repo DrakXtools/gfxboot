@@ -92,6 +92,9 @@
   config.volume sound.setvolume 
 
   window.done
+
+  % do it only once
+  /load_talk_dialog { } def
 } def
 
 

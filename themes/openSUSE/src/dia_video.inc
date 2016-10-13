@@ -22,14 +22,6 @@
 %     1: supported display res
 %
 
-% buffer for translated menu string
-%/video.submenu.smode.buf 64 string def
-%/video.submenu.smode {
-%  xmenu.smode .xm_title get exec "\x09\x09%s" video.submenu.smode.buf sprintf
-%  video.submenu.smode.buf
-%} def
-
-
 % - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 % Create sort key for video modes.
 %
@@ -73,7 +65,10 @@
     displaysizes
 
     % add anything that crosses your mind
-    150000 10000
+    1024 768
+    1680 1050
+    1920 1080
+    1920 1200
   ] def
 
   /video.modes.list [
@@ -165,17 +160,10 @@
     pop
   } forall
 
-  video.modes.list length {
-    % add separating line before first entry
-    video.modes.list 0 get
-    .vm_label get dup strdup dup "\x01%s" 4 -1 roll sprintf free
-  } if
-
   % build submenus
 
   /video.modes.installer [
     [ -1 0 ""           /txt_kernel_default 0 0 ]
-    [ -2 0 "textmode=1" /txt_text_mode      0 0 ]
 
     video.modes.list { } forall
   ] def
@@ -190,7 +178,10 @@
   /video.modes.bios [
     [ -1 0 ""           /txt_kernel_default 0 0 ]
 
-    video.modes.list { } forall
+    video.modes.list {
+      % keep only modes with VBE mode number
+      dup .vm_mode get 0 eq { pop } if
+    } forall
   ] def
 
   /xmenu.video.installer .xm_size array def
@@ -200,22 +191,31 @@
   % add to menu
 
   xmenu.video.installer .xm_list [ video.modes.installer { .vm_label get } forall ] put
-  xmenu.video.installer .xm_title "Video Mode" put
+  xmenu.video.installer .xm_attr xmenu.video.installer .xm_list get length array put
+  % line above 2nd entry
+  xmenu.video.installer .xm_attr get 1 1 put
+  xmenu.video.installer .xm_title "Installer Size" put
   xmenu.video.installer .xm_current 0 put
 
   xmenu.video.console .xm_list [ video.modes.console { .vm_label get } forall ] put
-  xmenu.video.console .xm_title "" put
+  xmenu.video.console .xm_attr xmenu.video.console .xm_list get length array put
+  % line above 3rd entry
+  xmenu.video.console .xm_attr get 2 1 put
+  xmenu.video.console .xm_title "Text Console Size" put
   xmenu.video.console .xm_current 0 put
 
   xmenu.video.bios .xm_list [ video.modes.bios { .vm_label get } forall ] put
-  xmenu.video.bios .xm_title "" put
+  xmenu.video.bios .xm_attr xmenu.video.bios .xm_list get length array put
+  % line above 2nd entry
+  xmenu.video.bios .xm_attr get 1 1 put
+  xmenu.video.bios .xm_title "Video BIOS Size" put
   xmenu.video.bios .xm_current 0 put
 
   % create menu
 
   /xmenu.video.hc .xm_size array def
-  xmenu.video.hc .xm_list [ "Default" "High Contrast" ] put
-  xmenu.video.hc .xm_title "" put
+  xmenu.video.hc .xm_list [ "Default" "White on Black" "Cyan on Black" "Yellow on Black" ] put
+  xmenu.video.hc .xm_title "Color Mode" put
   xmenu.video.hc .xm_current 0 put
 
   % add to menu
@@ -233,20 +233,28 @@
     "Installer Size"
     "Text Console Size"
     "Video BIOS Size"
-    "\x01Text Mode"
-    "High Contrast"
+    /txt_text_mode
+    "Color Mode"
     "Screen Reader"
   ] put
 
   % empty array
   /video.checkmarks xmenu .xm_list get length array def
 
-  video.checkmarks 3 false put
-  video.checkmarks 5 false put
+  /vm.text_mode.idx 3 def
+  /vm.screen_reader.idx 5 def
+
+  video.checkmarks vm.text_mode.idx false put
+  video.checkmarks vm.screen_reader.idx false put
 
   xmenu .xm_checkmarks video.checkmarks put
 
   xmenu .xm_submenus video.submenu.list put
+
+  xmenu .xm_attr xmenu .xm_list get length array put
+  % line before 3rd entry
+  xmenu .xm_attr get 3 1 put
+  xmenu .xm_attr get 5 0x100 put
 
   xmenu .xm_title /txt_video_mode put
 
@@ -295,9 +303,14 @@
 % ( ) => ( width )
 %
 /panel.video.width {
+  /tmp_title xmenu.video.installer .xm_title get def
+  xmenu.video.installer .xm_title xmenu.video .xm_title get put
+
   /xmenu xmenu.video.installer def
 
   pmenu.width
+
+  xmenu.video .xm_panel_x xmenu.video.installer .xm_panel_x get put
 
   /xmenu xmenu.video def
 } def
@@ -309,11 +322,16 @@
 % ( panel ) => ( )
 %
 /panel.video.update {
+  /tmp_title xmenu.video.installer .xm_title get def
+  xmenu.video.installer .xm_title xmenu.video .xm_title get put
+
   /xmenu xmenu.video.installer def
 
   pmenu.panel.update
 
   xmenu.video .xm_panel_x xmenu.video.installer .xm_panel_x get put
+
+  xmenu.video.installer .xm_title tmp_title put
 
   /xmenu xmenu.video def
 } def
@@ -351,9 +369,100 @@
 % - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 % Get current high contrast setting.
 %
-% ( ) => ( int )
+% ( ) => ( string )
 %
 /video.hc.current {
   xmenu.video.hc .xm_current get
+  dup 0 gt {
+    [ "" "white-on-black" "cyan-on-black" "yellow-on-black" ] exch get "Y2COLORMODE=%s" video.hc.current.buf sprintf
+    video.hc.current.buf
+  } {
+    pop .undef
+  } ifelse
+} def
+/video.hc.current.buf 64 string def
+
+
+% - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+% Get current text mode setting.
+%
+% ( ) => ( string )
+%
+/video.textmode.current {
+  video.checkmarks vm.text_mode.idx get {
+    "textmode=1"
+  } {
+    .undef
+  } ifelse
+} def
+
+
+% - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+% Get current kms setting.
+%
+% ( ) => ( string )
+%
+/video.kms.current {
+  xmenu.video.console .xm_current get
+  dup 0 eq {
+    pop .undef
+  } {
+    video.modes.console exch get
+    dup .vm_options get "" ne {
+      .vm_options get
+    } {
+      dup .vm_width get exch .vm_height get "video=%dx%d" video.kms.current.buf sprintf
+      video.kms.current.buf
+    } ifelse
+  } ifelse
+} def
+/video.kms.current.buf 64 string def
+
+
+% - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+% Get current installer size setting.
+%
+% ( ) => ( string )
+%
+/video.installer_size.current {
+  xmenu.video.installer .xm_current get
+  dup 0 eq {
+    pop .undef
+  } {
+    video.modes.installer exch get
+    dup .vm_width get exch .vm_height get "xvideo=%dx%d" video.installer_size.current.buf sprintf
+    video.installer_size.current.buf
+  } ifelse
+} def
+/video.installer_size.current.buf 64 string def
+
+
+% - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+% Get current vbe setting.
+%
+% ( ) => ( string )
+%
+/video.vbe.current {
+  xmenu.video.bios .xm_current get
+  dup 0 eq {
+    pop .undef
+  } {
+    video.modes.bios exch get
+    .vm_mode get 0x200 add "vga=0x%x" video.vbe.current.buf sprintf
+    video.vbe.current.buf
+  } ifelse
+} def
+/video.vbe.current.buf 64 string def
+
+
+/video.speak {
+  video.checkmarks vm.screen_reader.idx get {
+    /v_impaired 1 def
+    /config.talk true def
+    load_talk_dialog
+  } {
+    /v_impaired 0 def
+    /config.talk false def
+  } ifelse
 } def
 

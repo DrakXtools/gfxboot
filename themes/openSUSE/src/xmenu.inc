@@ -5,14 +5,6 @@
 % - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 
-% Menu labels can start with some special formatting marks (chars \x01 ... \x09).
-%
-% \x01: add separation line above menu entry
-% \x02: use alternate text color (lighter gray)
-%
-% Note: You can use several marks but they must be used in numerical order.
-%
-
 % - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 % Some global vars.
 %
@@ -35,18 +27,24 @@
 /.xm_panel_x		 6 def		% panel entry x pos
 /.xm_vspace		 7 def		% vspace per menu
 /.xm_title               8 def          % xmenu title
-/.xm_text                9 def          % xmenu text
-/.xm_checkmarks		10 def		% check mark states
-/.xm_submenus		11 def		% attached submenus
-/.xm_last               12 def          % last selected entry
-/.xm_size		13 def		% xmenu size
+/.xm_text                9 def          % array: menu texts
+/.xm_checkmarks		10 def		% array: check mark states
+/.xm_submenus		11 def		% array: attached submenus
+/.xm_attr		12 def		% array: text attributes (bitmask)
+					% bit 0: horizontal line above
+					% bit 1: alternate text color (light gray)
+/.xm_last               13 def          % last selected entry
+/.xm_size		14 def		% xmenu size
 
 
+% special chars used in menu drawing
 %
-%
-%
+% right arrow indicating submenu
 /label.submenu.right "\u25b6" def
+% left arrow indicating submenu in RTL layout
 /label.submenu.left "\u25c0" def
+% checkmark indicating selected entry
+/label.checkmark "\u2714" def
 
 % short hands
 /xmenu.x { xmenu .xm_x get } def
@@ -103,6 +101,7 @@
   dup keyEnter eq {
     xmenu.current_has_checkmark {
       xmenu.invert_checkmark
+      xmenu .xm_current get xmenu.attr 0x100 and { video.speak } if
       xmenu .xm_current get xmenu.select
     } {
       window.current .xmenu.update get
@@ -207,7 +206,7 @@
 
     xmenu .xm_submenus get { label.submenu.right strsize pop "xx" strsize pop add add } if
 
-    xmenu .xm_checkmarks get { "x" strsize pop add } if
+    xmenu .xm_checkmarks get { label.checkmark strsize pop add } if
   put
 
   xmenu .xm_y panel.text.y 1 sub xmenu.height sub put
@@ -351,21 +350,9 @@
     xmenu.pos.x xmenu.hspace add xmenu.pos.y xmenu.vspace add moveto
   } ifelse
 
-  % calculate checkmark type (0..3) for later
-  /checkmark_state
-    xmenu .xm_checkmarks get dup {
-      2 index get
-      dup .undef eq { pop 1 } { { 3 } { 2 } ifelse } ifelse
-    } {
-      pop
-      0
-    } ifelse
-  def
-
   xmenu .xm_list get over get exec
 
-  dup 0 get '\x01' eq {
-    1 add
+  over xmenu.attr.line {
     currentpoint
     currentcolor
 
@@ -380,8 +367,7 @@
     moveto
   } if
 
-  dup 0 get '\x02' eq {
-    1 add
+  over xmenu.attr.alt_color {
     xmenu.is_selected not { xmenu.normal.alt.fg setcolor } if
   } if
 
@@ -400,6 +386,28 @@
 
   pop
 
+} def
+
+
+% ( entry ) => ( int )
+/xmenu.attr {
+  xmenu .xm_attr get dup {
+    exch get dup .undef eq { pop 0 } if
+  } {
+    pop pop 0
+  } ifelse
+} def
+
+
+% ( entry ) => ( bool )
+/xmenu.attr.line {
+  xmenu.attr 1 and { true } { false } ifelse
+} def
+
+
+% ( entry ) => ( bool )
+/xmenu.attr.alt_color {
+  xmenu.attr 2 and { true } { false } ifelse
 } def
 
 
@@ -434,8 +442,8 @@
 
   rot
   dup 1 eq { } if
-  dup 2 eq { "." show.rtl } if
-  dup 3 eq { "x" show.rtl } if
+  dup 2 eq { "" show.rtl } if
+  dup 3 eq { label.checkmark show.rtl } if
   pop
 
   moveto
